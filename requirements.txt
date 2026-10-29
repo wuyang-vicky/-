@@ -1,0 +1,4 @@
+﻿flask>=3.0
+opencv-python>=4.7
+pillow>=9.0
+numpy>=1.23

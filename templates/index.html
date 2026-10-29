@@ -1,0 +1,227 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>绣纹智绘 · 故宫纹样解析与创新生成平台</title>
+<style>
+:root{--red:#9D2933;--red-dark:#7A1E22;--gold:#E8C36B;--gold-deep:#C9A227;
+  --cream:#F7F1E3;--ink:#3A2318;--line:#d9c39a;}
+*{box-sizing:border-box;}
+body{margin:0;color:var(--ink);min-height:100vh;
+  font-family:"Noto Serif SC","Source Han Serif SC","STSong","SimSun",serif;
+  background:radial-gradient(circle at 50% -8%,#b23a44 0%,var(--red) 42%,var(--red-dark) 100%) fixed;}
+.wrap{max-width:1080px;margin:0 auto;padding:26px 20px 60px;}
+.huiwen{height:10px;margin:14px 0;opacity:.85;
+  background:repeating-linear-gradient(90deg,var(--gold) 0 8px,transparent 8px 16px);}
+header{text-align:center;color:var(--gold);padding:14px 0 4px;}
+header .cloud{width:130px;height:38px;opacity:.9;}
+header h1{font-size:40px;letter-spacing:14px;margin:6px 0 4px;font-weight:700;
+  text-shadow:0 2px 0 var(--red-dark);}
+header p{margin:0;letter-spacing:4px;font-size:14px;color:#f3e4c0;}
+.tabs{display:flex;gap:10px;justify-content:center;margin:14px 0 22px;flex-wrap:wrap;}
+.tab{cursor:pointer;padding:10px 24px;border:1px solid var(--gold);color:var(--gold);
+  background:rgba(0,0,0,.12);border-radius:4px;letter-spacing:3px;font-size:16px;}
+.tab.active{background:var(--gold);color:var(--red);font-weight:700;}
+.panel{display:none;background:var(--cream);border:1px solid var(--line);border-radius:8px;
+  padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+.panel.active{display:block;}
+.row{display:flex;gap:22px;flex-wrap:wrap;}
+.card{flex:1;min-width:300px;background:#fffdf7;border:1px solid var(--line);border-radius:6px;padding:16px;}
+.preview{width:100%;aspect-ratio:1/1;background:#FBF6E9;
+  border:1px solid var(--gold-deep);border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.preview svg{max-width:96%;max-height:96%;}
+label{display:block;margin:12px 0 6px;letter-spacing:2px;color:var(--red-dark);font-weight:700;}
+select,input[type=range]{width:100%;padding:8px;border:1px solid var(--gold-deep);border-radius:4px;
+  background:#fffdf7;font-family:inherit;color:var(--ink);}
+.btn{margin-top:14px;cursor:pointer;padding:10px 20px;border:1px solid var(--red-dark);
+  background:var(--gold);color:var(--red);border-radius:4px;letter-spacing:3px;font-weight:700;font-family:inherit;}
+.btn:hover{background:var(--gold-deep);}
+.meta{margin-top:12px;font-size:14px;line-height:1.9;}
+.swatch{display:inline-block;width:22px;height:22px;border:1px solid var(--ink);border-radius:3px;vertical-align:middle;margin-right:6px;}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+.gallery img{width:100%;aspect-ratio:1/1;object-fit:cover;border:1px solid var(--gold-deep);border-radius:4px;background:#fff;cursor:pointer;}
+.gallery img:hover{outline:3px solid var(--gold);}
+.tag{display:inline-block;padding:2px 10px;border:1px solid var(--gold-deep);border-radius:12px;color:var(--red-dark);margin:3px 4px 0 0;font-size:13px;}
+footer{text-align:center;color:#f0dcb4;letter-spacing:2px;font-size:13px;margin-top:30px;opacity:.85;}
+
+.analysis{margin-top:18px;border-top:1px dashed var(--line);padding-top:14px;}
+.sec-h{color:var(--red-dark);letter-spacing:3px;margin:4px 0 12px;font-size:18px;}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.card-mini{background:#fffdf7;border:1px solid var(--line);border-radius:6px;padding:10px 12px;}
+.card-mini b{display:block;color:var(--red-dark);font-size:13px;letter-spacing:1px;margin-bottom:4px;}
+.card-mini span{font-size:20px;font-weight:700;color:var(--ink);}
+.cmp-row{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0;}
+.cmp-row figure{flex:1;min-width:260px;margin:0;background:#fffdf7;border:1px solid var(--line);border-radius:6px;padding:10px;}
+.cmp-row figcaption{font-size:13px;color:var(--red-dark);margin-bottom:8px;letter-spacing:1px;}
+.mini{width:100%;aspect-ratio:4/3;background:#FBF6E9;border:1px solid var(--gold-deep);border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.mini svg{max-width:98%;max-height:98%;}
+.note{background:#fffdf7;border:1px solid var(--line);border-radius:6px;padding:14px;font-size:13.5px;line-height:1.9;color:var(--ink);}
+.note h4{margin:0 0 6px;color:var(--red-dark);letter-spacing:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="cloud" viewBox="0 0 200 60"><path fill="#E8C36B" d="M20 45 q5 -22 28 -18 q6 -18 26 -10 q16 4 12 22 q20 2 16 18 q-4 14 -24 10 q-10 12 -30 4 q-20 4 -28 -10 q-8 -14 0 -28 z"/></svg>
+    <h1>绣纹智绘</h1>
+    <p>面向故宫纹样的轻量化 AI 纹样解析与创新生成平台</p>
+  </header>
+  <div class="huiwen"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-t="parse">纹样解析</div>
+    <div class="tab" data-t="gen">创新生成</div>
+    <div class="tab" data-t="lib">纹样库</div>
+  </div>
+
+  <section class="panel active" id="parse">
+    <div class="row">
+      <div class="card">
+        <label>上传纹样图片</label>
+        <input type="file" id="file" accept="image/*">
+        <button class="btn" id="btnParse">解析并矢量化</button>
+        <div class="preview" id="parsePrev" style="margin-top:14px;">待解析</div>
+        <button class="btn" id="btnDownParse" disabled>下载 SVG</button>
+      </div>
+      <div class="card">
+        <label>解析结果</label>
+        <div class="meta" id="parseMeta">上传一张故宫纹样图，系统将自动提取主体轮廓、生成可编辑矢量，并分析主色板与对称类型。</div>
+      </div>
+    </div>
+    <div class="analysis" id="analysis" style="display:none;">
+      <h3 class="sec-h">纹样特征分析</h3>
+      <div class="cards" id="featCards"></div>
+      <div class="cmp-row">
+        <figure><figcaption>仅提取颜色（色彩还原，结构与语义丢失）</figcaption><div class="mini" id="featColor"></div></figure>
+        <figure><figcaption>花纹提取（轮廓结构线稿，揭示构图与母题）</figcaption><div class="mini" id="featLine"></div></figure>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="panel" id="gen">
+    <div class="row">
+      <div class="card">
+        <label>对称方式</label>
+        <select id="gSym"><option value="radial">放射对称</option><option value="mirror">左右镜像</option><option value="four">四向对称</option></select>
+        <label>母题</label>
+        <select id="gMotif"><option value="lotus">缠枝莲</option><option value="cloud">祥云纹</option><option value="meander">回纹</option><option value="geometry">几何锦地</option></select>
+        <label>层数与随机种子</label>
+        <input type="range" id="gLayers" min="1" max="5" value="3">
+        <input type="number" id="gSeed" value="7" style="margin-top:8px;">
+        <button class="btn" id="btnGen">生成新纹样</button>
+        <div class="preview" id="genPrev" style="margin-top:14px;">点击生成</div>
+        <button class="btn" id="btnDownGen" disabled>下载 SVG</button>
+      </div>
+      <div class="card">
+        <label>说明</label>
+        <div class="meta">程序化对称生成：以故宫经典母题（缠枝莲 / 祥云 / 回纹 / 几何锦地）为基元，按所选对称法则自动排布，形成可无限衍生的新纹样。调整种子可得到不同构图，全部为矢量，可直接用于织绣、瓷器或数字文创。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="lib">
+    <div class="meta">点击任意纹样可一键载入「纹样解析」进行矢量化。</div>
+    <div class="gallery" id="gallery" style="margin-top:14px;"></div>
+  </section>
+
+  <footer>绣纹智绘 · 故宫纹样数字活化演示 · 解析基于计算机视觉轮廓矢量化，生成基于程序化对称纹样</footer>
+</div>
+
+<script>
+var currentSvg = "";
+function setSvg(box, svg){ box.innerHTML = svg; currentSvg = svg; }
+function downloadSvg(btn){
+  if(!currentSvg) return;
+  var b = new Blob([currentSvg], {type:"image/svg+xml"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = "xiuwen.svg"; a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.querySelectorAll(".tab").forEach(function(t){
+  t.onclick = function(){
+    document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active");});
+    document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("active");});
+    t.classList.add("active");
+    document.getElementById(t.dataset.t).classList.add("active");
+    if(t.dataset.t === "lib") loadGallery();
+  };
+});
+function card(label,val){ return '<div class="card-mini"><b>'+label+'</b><span>'+val+'</span></div>'; }
+function renderParse(d){
+  setSvg(document.getElementById("parsePrev"), d.svg);
+  var html = "<div><b>解析模式：</b>" + (d.mode === "flat" ? "平面纹样（二值矢量）" : "实物照片（多色描摹）") + "</div>";
+  html += "<div><b>对称类型：</b>" + d.symmetry + "</div>";
+  html += "<div><b>轮廓数：</b>" + d.contours + "</div>";
+  html += "<div style='margin-top:8px;'><b>主色板：</b><br>";
+  (d.palette || []).forEach(function(c){ html += "<span class='swatch' style='background:" + c + "'></span>" + c + "<br>"; });
+  html += "</div><div style='margin-top:8px;'>已生成可编辑矢量 SVG。</div>";
+  document.getElementById("parseMeta").innerHTML = html;
+  var f = d.features || {};
+  var cards = "";
+  cards += card("对称类型", f.symmetry || "-");
+  cards += card("轮廓数量", f.contour_count != null ? f.contour_count : "-");
+  cards += card("纹样繁复度", (f.complexity != null ? f.complexity : "-") + "/100");
+  cards += card("重复韵律度", (f.repetition != null ? f.repetition : "-") + "/100");
+  cards += card("前景占比", f.fg_ratio != null ? Math.round(f.fg_ratio*100) + "%" : "-");
+  cards += card("前景/背景对比", f.contrast != null ? f.contrast : "-");
+  var keys = f.motifs ? Object.keys(f.motifs) : [];
+  cards += "<div class='card-mini' style='grid-column:1/-1;'><b>母题构成（识别出的纹样类别及数量）</b>";
+  if(keys.length === 0) cards += "<span style='font-size:14px;font-weight:400;'>未识别出显著母题</span>";
+  else { cards += "<div style='margin-top:6px;'>"; keys.forEach(function(k){ cards += "<span class='tag'>" + k + " × " + f.motifs[k] + "</span>"; }); cards += "</div>"; }
+  cards += "</div>";
+  document.getElementById("featCards").innerHTML = cards;
+  document.getElementById("featColor").innerHTML = d.color_only_svg || "";
+  document.getElementById("featLine").innerHTML = d.lineart_svg || "";
+  document.getElementById("analysis").style.display = "block";
+  document.getElementById("btnDownParse").disabled = false;
+}
+document.getElementById("btnParse").onclick = function(){
+  var btn = this;
+  var f = document.getElementById("file").files[0];
+  if(!f){ alert("请先选择图片"); return; }
+  btn.disabled = true; btn.textContent = "解析中…";
+  var fd = new FormData(); fd.append("image", f);
+  fetch("/api/parse", {method:"POST", body:fd}).then(function(r){return r.json();}).then(function(d){
+    if(d.error){ alert(d.error); return; }
+    renderParse(d);
+  }).catch(function(e){ alert("解析失败：" + e); }).finally(function(){ btn.disabled = false; btn.textContent = "解析并矢量化"; });
+};
+document.getElementById("btnDownParse").onclick = function(){ downloadSvg(this); };
+document.getElementById("btnGen").onclick = function(){
+  var p = {symmetry:document.getElementById("gSym").value, motif:document.getElementById("gMotif").value,
+    layers:parseInt(document.getElementById("gLayers").value,10), seed:parseInt(document.getElementById("gSeed").value,10)};
+  fetch("/api/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(p)})
+    .then(function(r){return r.json();}).then(function(d){
+      setSvg(document.getElementById("genPrev"), d.svg);
+      document.getElementById("btnDownGen").disabled = false;
+    });
+};
+document.getElementById("btnDownGen").onclick = function(){ downloadSvg(this); };
+function loadGallery(){
+  fetch("/api/gallery").then(function(r){return r.json();}).then(function(list){
+    var g = document.getElementById("gallery"); g.innerHTML = "";
+    list.forEach(function(name){
+      var img = document.createElement("img");
+      img.src = "/sample/" + encodeURIComponent(name);
+      img.onclick = function(){
+        fetch(img.src).then(function(r){return r.blob();}).then(function(blob){
+          var fd = new FormData(); fd.append("image", blob, name);
+          fetch("/api/parse", {method:"POST", body:fd}).then(function(r){return r.json();}).then(function(d){
+            if(d.error) return;
+            renderParse(d);
+            document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active");});
+            document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("active");});
+            document.querySelector(".tab[data-t=parse]").classList.add("active");
+            document.getElementById("parse").classList.add("active");
+          });
+        });
+      };
+      g.appendChild(img);
+    });
+  });
+}
+</script>
+</body>
+</html>
