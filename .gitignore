@@ -4,3 +4,5 @@ __pycache__/
 venv/
 *.zip
 .DS_Store
+_srv.out
+_srv.err

@@ -182,6 +182,35 @@ def _features(polys, mask, img):
     }
 
 
+def _motif_poly(polys, cap=200):
+    """取面积最大轮廓，归一化为以质心为原点、最长半轴≈0.5 的单位坐标（约 [-0.5,0.5]）。"""
+    if not polys:
+        return None
+    best = None
+    best_a = -1.0
+    for p in polys:
+        if len(p) < 3:
+            continue
+        a = cv2.contourArea(p.astype(np.int32))
+        if a > best_a:
+            best_a = a
+            best = p
+    if best is None:
+        return None
+    pts = best.astype(np.float64)
+    cx = float(pts[:, 0].mean())
+    cy = float(pts[:, 1].mean())
+    rel = pts - (cx, cy)
+    ext = max(float(np.abs(rel[:, 0]).max()), float(np.abs(rel[:, 1]).max()))
+    if ext <= 0:
+        return None
+    norm = rel / (2.0 * ext)
+    if len(norm) > cap:
+        idx = np.linspace(0, len(norm) - 1, cap).astype(int)
+        norm = norm[idx]
+    return [[round(float(x), 4), round(float(y), 4)] for x, y in norm]
+
+
 def _finalize(img, mask, polys, base_svg, palette, mode, h, w, h0, w0, layers):
     lineart = _lineart_svg(w, h, polys)
     color_only = _color_only_svg(img)
@@ -191,6 +220,7 @@ def _finalize(img, mask, polys, base_svg, palette, mode, h, w, h0, w0, layers):
         "svg": base_svg, "palette": palette, "symmetry": feat["symmetry"],
         "contours": len(polys), "size": [w0, h0], "mode": mode, "layers": int(layers),
         "lineart_svg": lineart, "color_only_svg": color_only, "features": feat,
+        "motif_poly": _motif_poly(polys),
     }
 def _parse_flat(img, h0, w0):
     h, w = img.shape[:2]

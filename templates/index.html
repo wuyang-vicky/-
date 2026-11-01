@@ -104,9 +104,9 @@ footer{text-align:center;color:#f0dcb4;letter-spacing:2px;font-size:13px;margin-
     <div class="row">
       <div class="card">
         <label>对称方式</label>
-        <select id="gSym"><option value="radial">放射对称</option><option value="mirror">左右镜像</option><option value="four">四向对称</option></select>
+        <select id="gSym"><option value="radial">放射对称（团花）</option><option value="mirror">左右镜像</option><option value="four">四向对称</option><option value="grid">四方连续（平铺）</option><option value="strip">二方连续（纹带）</option></select>
         <label>母题</label>
-        <select id="gMotif"><option value="lotus">缠枝莲</option><option value="cloud">祥云纹</option><option value="meander">回纹</option><option value="geometry">几何锦地</option></select>
+        <select id="gMotif"><option value="lotus">缠枝莲</option><option value="cloud">祥云纹</option><option value="meander">回纹</option><option value="geometry">几何锦地</option><option value="baoxiang">宝相花</option><option value="lianzhu">联珠纹</option><option value="guibei">龟背锦</option><option value="binglie">冰裂纹</option><option value="shuiwen">海水江崖</option><option value="custom">用解析轮廓（自定义母题）</option></select>
         <label>层数与随机种子</label>
         <input type="range" id="gLayers" min="1" max="5" value="3">
         <input type="number" id="gSeed" value="7" style="margin-top:8px;">
@@ -116,7 +116,7 @@ footer{text-align:center;color:#f0dcb4;letter-spacing:2px;font-size:13px;margin-
       </div>
       <div class="card">
         <label>说明</label>
-        <div class="meta">程序化对称生成：以故宫经典母题（缠枝莲 / 祥云 / 回纹 / 几何锦地）为基元，按所选对称法则自动排布，形成可无限衍生的新纹样。调整种子可得到不同构图，全部为矢量，可直接用于织绣、瓷器或数字文创。</div>
+        <div class="meta">程序化生成：以故宫经典母题（缠枝莲 / 祥云 / 回纹 / 几何锦地 / 宝相花 / 联珠纹 / 龟背锦）为基元，按对称法则（放射·镜像·四向·四方连续·二方连续）排布；另有冰裂纹、海水江崖采用满版细分 / 参数化机制生成。在「纹样解析」页解析的图可一键作为「自定义母题」用于以上任意对称生成，形成解析—生成闭环。调整种子得到不同构图，全部为矢量，可直接用于织绣、瓷器或数字文创。注：冰裂纹 / 海水江崖为满版生成，对称方式对其不另生效。</div>
       </div>
     </div>
   </section>
@@ -186,12 +186,17 @@ document.getElementById("btnParse").onclick = function(){
   fetch("/api/parse", {method:"POST", body:fd}).then(function(r){return r.json();}).then(function(d){
     if(d.error){ alert(d.error); return; }
     renderParse(d);
+    window._lastMotifPoly = d.motif_poly || null;
   }).catch(function(e){ alert("解析失败：" + e); }).finally(function(){ btn.disabled = false; btn.textContent = "解析并矢量化"; });
 };
 document.getElementById("btnDownParse").onclick = function(){ downloadSvg(this); };
 document.getElementById("btnGen").onclick = function(){
   var p = {symmetry:document.getElementById("gSym").value, motif:document.getElementById("gMotif").value,
     layers:parseInt(document.getElementById("gLayers").value,10), seed:parseInt(document.getElementById("gSeed").value,10)};
+  if(p.motif === "custom"){
+    if(!window._lastMotifPoly){ alert("请先在「纹样解析」页解析一张图，系统将把其主轮廓作为自定义母题"); return; }
+    p.motif_points = window._lastMotifPoly;
+  }
   fetch("/api/generate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(p)})
     .then(function(r){return r.json();}).then(function(d){
       setSvg(document.getElementById("genPrev"), d.svg);

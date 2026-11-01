@@ -79,7 +79,26 @@ def detect_symmetry(bw):
     if mv > 0.85:
         return "上下镜像对称"
     return "自由构图/不对称"
-def motif(kind, cx, cy, s, rng, color):
+FIELD_KINDS = ("binglie", "shuiwen")  # 满版生成类（细分 / 参数化机制），不遵循母题复制式对称
+
+def _sanitize_points(pts, cap=2000):
+    """校验并限幅客户端传入的母题点；非法则返回 None（回退默认母题）。"""
+    if not isinstance(pts, list) or len(pts) > cap:
+        return None
+    out = []
+    for p in pts:
+        if not (isinstance(p, list) and len(p) == 2):
+            return None
+        try:
+            xf, yf = float(p[0]), float(p[1])
+        except (TypeError, ValueError):
+            return None
+        xf = max(-2.0, min(2.0, xf))
+        yf = max(-2.0, min(2.0, yf))
+        out.append([xf, yf])
+    return out
+
+def motif(kind, cx, cy, s, rng, color, points=None):
     el = []
     if kind == "lotus":
         petals = rng.randint(6, 10)
@@ -103,6 +122,39 @@ def motif(kind, cx, cy, s, rng, color):
         pts = ["%.1f,%.1f" % (cx + s * 0.7 * np.cos(2 * np.pi * i / n),
                               cy + s * 0.7 * np.sin(2 * np.pi * i / n)) for i in range(n + 1)]
         el.append('<polygon points="%s" fill="none" stroke="%s" stroke-width="%.1f"/>' % (" ".join(pts), color, s * 0.08))
+    elif kind == "baoxiang":
+        # 宝相花：内外两圈花瓣 + 中心花蕊（辐射式团花复合母题）
+        for ring, (pc, rr, pr) in enumerate([(rng.randint(8, 12), s * 0.5, s * 0.16),
+                                             (rng.randint(6, 8), s * 0.30, s * 0.13)]):
+            for i in range(pc):
+                a = 2 * np.pi * i / pc + ring * 0.22
+                px = cx + rr * np.cos(a)
+                py = cy + rr * np.sin(a)
+                deg = a * 180 / np.pi
+                el.append('<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" transform="rotate(%.1f %.1f %.1f)"/>'
+                          % (px, py, pr, pr * 0.45, color, deg, px, py))
+        el.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>' % (cx, cy, s * 0.15, color))
+    elif kind == "lianzhu":
+        # 联珠纹：环列小圆珠 + 外环
+        n = rng.randint(10, 16)
+        for i in range(n):
+            a = 2 * np.pi * i / n
+            x = cx + (s * 0.5) * np.cos(a)
+            y = cy + (s * 0.5) * np.sin(a)
+            el.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>' % (x, y, s * 0.10, color))
+        el.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="none" stroke="%s" stroke-width="%.1f"/>'
+                  % (cx, cy, s * 0.55, color, s * 0.05))
+    elif kind == "guibei":
+        # 龟背锦：六边形单元（可平铺为六边锦地）
+        R = s * 0.5
+        pts = ["%.1f,%.1f" % (cx + R * np.cos(2 * np.pi * i / 6 + np.pi / 6),
+                              cy + R * np.sin(2 * np.pi * i / 6 + np.pi / 6)) for i in range(6)]
+        el.append('<polygon points="%s" fill="none" stroke="%s" stroke-width="%.1f"/>' % (" ".join(pts), color, s * 0.06))
+        el.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>' % (cx, cy, s * 0.12, color))
+    elif kind == "custom" and points:
+        # 自定义母题：用解析得到的主轮廓（归一化点）填充为实体基元
+        d = "M " + " L ".join("%.1f %.1f" % (cx + x * s, cy + y * s) for x, y in points) + " Z"
+        el.append('<path d="%s" fill="%s" fill-rule="evenodd"/>' % (d, color))
     else:
         for rot in (0, 45):
             el.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="%s" transform="rotate(%d %.1f %.1f)"/>'
@@ -110,33 +162,103 @@ def motif(kind, cx, cy, s, rng, color):
         el.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>' % (cx, cy, s * 0.14, color))
     return el
 
-def generate_papercut(symmetry, kind, layers, seed, size=640):
-    rng = random.Random(seed)
-    cx = cy = size / 2
+
+def _gen_header(size, with_ring=True, bg=RED):
     parts = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="100%%" '
              'preserveAspectRatio="xMidYMid meet"><rect width="%d" height="%d" fill="%s"/>'
-             % (size, size, size, size, RED)]
-    parts.append('<circle cx="%d" cy="%d" r="%d" fill="none" stroke="%s" stroke-width="6"/>' % (cx, cy, size * 0.46, GOLD))
-    parts.append('<circle cx="%d" cy="%d" r="%d" fill="none" stroke="%s" stroke-width="2"/>' % (cx, cy, size * 0.42, GOLD))
+             % (size, size, size, size, bg)]
+    if with_ring:
+        c = size // 2
+        parts.append('<circle cx="%d" cy="%d" r="%d" fill="none" stroke="%s" stroke-width="6"/>' % (c, c, int(size * 0.46), GOLD))
+        parts.append('<circle cx="%d" cy="%d" r="%d" fill="none" stroke="%s" stroke-width="2"/>' % (c, c, int(size * 0.42), GOLD))
+    return parts
+
+
+def generate_papercut(symmetry, kind, layers, seed, size=640, motif_points=None):
+    if kind in FIELD_KINDS:
+        return generate_field(kind, seed, size, layers)
+    if not isinstance(motif_points, list):
+        motif_points = None
+    rng = random.Random(seed)
+    cx = cy = size / 2
+    def draw(k, x, y, sc):
+        return motif(k, x, y, sc, rng, GOLD, points=(motif_points if k == "custom" else None))
+    parts = _gen_header(size, with_ring=(symmetry in ("radial", "mirror", "four")))
     if symmetry == "radial":
         folds = rng.randint(4, 8)
         for layer in range(1, layers + 1):
             R = size * 0.12 * layer
             for f in range(folds):
                 ang = 2 * np.pi * f / folds + layer * 0.25
-                parts += motif(kind, cx + R * np.cos(ang), cy + R * np.sin(ang), R * 0.5, rng, GOLD)
+                parts += draw(kind, cx + R * np.cos(ang), cy + R * np.sin(ang), R * 0.5)
     elif symmetry == "mirror":
         for layer in range(1, layers + 1):
             R = size * 0.14 * layer
             for sx in (-1, 1):
-                parts += motif(kind, cx + sx * R * 0.62, cy - R * 0.15 * layer, R * 0.5, rng, GOLD)
+                parts += draw(kind, cx + sx * R * 0.62, cy - R * 0.15 * layer, R * 0.5)
+    elif symmetry == "four":
+        for layer in range(1, layers + 1):
+            R = size * 0.14 * layer
+            for dx in (-1, 1):
+                for dy in (-1, 1):
+                    parts += draw(kind, cx + dx * R * 0.5, cy + dy * R * 0.5, R * 0.45)
+    elif symmetry == "grid":
+        # 四方连续：母题在二维网格上平铺（含交错偏移）
+        step = size / (layers + 2)
+        for gy in range(layers + 2):
+            off = step * 0.5 if gy % 2 else 0
+            for gx in range(layers + 3):
+                parts += draw(kind, step * (gx + 0.5) + off, step * (gy + 0.5), step * 0.42)
+    elif symmetry == "strip":
+        # 二方连续：母题沿水平方向重复成带
+        step = size / (layers + 2)
+        for gy in (0.28, 0.5, 0.72):
+            for gx in range(layers + 3):
+                parts += draw(kind, step * (gx + 0.5), size * gy, step * 0.42)
     else:
         for layer in range(1, layers + 1):
             R = size * 0.14 * layer
             for dx in (-1, 1):
                 for dy in (-1, 1):
-                    parts += motif(kind, cx + dx * R * 0.5, cy + dy * R * 0.5, R * 0.45, rng, GOLD)
-    parts += motif(kind, cx, cy, size * 0.16, rng, GOLD)
+                    parts += draw(kind, cx + dx * R * 0.5, cy + dy * R * 0.5, R * 0.45)
+    parts += draw(kind, cx, cy, size * 0.16)
+    parts.append('</svg>')
+    return "".join(parts)
+
+
+def generate_field(kind, seed, size=640, layers=3):
+    rng = random.Random(seed)
+    parts = _gen_header(size, with_ring=False)
+    if kind == "binglie":
+        # 冰裂纹：随机撒点 + 最近邻锯齿连线（空间细分机制，非母题复制）
+        n = 12 + layers * 3
+        pts = [(rng.uniform(0.08, 0.92) * size, rng.uniform(0.08, 0.92) * size) for _ in range(n)]
+        used = set()
+        for i, p in enumerate(pts):
+            d = sorted(range(n), key=lambda j: (pts[j][0] - p[0]) ** 2 + (pts[j][1] - p[1]) ** 2)
+            for j in d[1:3]:
+                key = (min(i, j), max(i, j))
+                if key in used:
+                    continue
+                used.add(key)
+                a, b = p, pts[j]
+                mx = (a[0] + b[0]) / 2 + rng.uniform(-size * 0.04, size * 0.04)
+                my = (a[1] + b[1]) / 2 + rng.uniform(-size * 0.04, size * 0.04)
+                parts.append('<polyline points="%.1f,%.1f %.1f,%.1f %.1f,%.1f" fill="none" stroke="%s" stroke-width="2"/>'
+                             % (a[0], a[1], mx, my, b[0], b[1], GOLD))
+    else:
+        # 海水江崖：正弦波带 + 中央立崖（参数化曲线机制）
+        rows = 5 + layers
+        for r in range(rows):
+            y0 = size * (0.20 + 0.60 * r / rows)
+            amp = size * 0.03
+            period = size / (4 + rng.randint(0, 2))
+            phase = rng.uniform(0, 6.28)
+            pts = ["%.1f,%.1f" % (x, y0 + amp * np.sin(2 * np.pi * x / period + phase))
+                   for x in range(0, size + 1, 8)]
+            parts.append('<polyline points="%s" fill="none" stroke="%s" stroke-width="2"/>' % (" ".join(pts), GOLD))
+        parts.append('<polygon points="%.1f,%.1f %.1f,%.1f %.1f,%.1f" fill="none" stroke="%s" stroke-width="2"/>'
+                     % (size * 0.38, size * 0.85, size * 0.5, size * 0.60, size * 0.62, size * 0.85, GOLD))
     parts.append('</svg>')
     return "".join(parts)
 @app.route("/")
@@ -156,8 +278,10 @@ def api_parse():
 @app.route("/api/generate", methods=["POST"])
 def api_gen():
     p = request.get_json(force=True)
+    mp = _sanitize_points(p.get("motif_points"))
     svg = generate_papercut(p.get("symmetry", "radial"), p.get("motif", "lotus"),
-                            max(1, int(p.get("layers", 3))), int(p.get("seed", 1)))
+                            max(1, int(p.get("layers", 3))), int(p.get("seed", 1)),
+                            motif_points=mp)
     return jsonify({"svg": svg})
 
 @app.route("/api/gallery")
